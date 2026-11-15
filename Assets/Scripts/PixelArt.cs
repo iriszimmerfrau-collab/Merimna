@@ -167,6 +167,34 @@ public static class PixelArt
         return room = c.ToSprite(Center);
     }
 
+    static Sprite doorClosed, doorOpen;
+
+    /// <summary>A bedroom door (2 x 3.25 units). Open = warm light pouring through.</summary>
+    public static Sprite Door(bool open)
+    {
+        if (open ? doorOpen != null : doorClosed != null) return open ? doorOpen : doorClosed;
+        var c = new PixelCanvas(32, 52);
+        Color frame = new Color(0.3f, 0.19f, 0.13f), wood = new Color(0.55f, 0.35f, 0.22f);
+        c.Fill(0, 0, 32, 52, frame);
+        if (!open)
+        {
+            c.Fill(3, 0, 26, 48, wood);
+            c.Fill(7, 5, 18, 17, Shade(wood, 0.85f));
+            c.Fill(7, 27, 18, 17, Shade(wood, 0.85f));
+            c.Fill(23, 23, 3, 3, new Color(0.95f, 0.8f, 0.3f));
+        }
+        else
+        {
+            c.Fill(3, 0, 26, 48, new Color(1f, 0.97f, 0.85f));      // morning light
+            c.Fill(8, 0, 21, 8, new Color(1f, 0.9f, 0.7f));
+            c.Fill(3, 0, 5, 48, wood);                             // the door leaf, swung open
+        }
+        c.Outline(Dark);
+        var s = c.ToSprite(Bottom);
+        if (open) doorOpen = s; else doorClosed = s;
+        return s;
+    }
+
     public static Sprite Bed()
     {
         if (bed != null) return bed;

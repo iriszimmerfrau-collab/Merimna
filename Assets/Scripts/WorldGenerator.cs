@@ -724,6 +724,7 @@ public class WorldGenerator : MonoBehaviour
             steps.world = this;
             SoundFx.Ensure();
             MusicManager.Ensure().Init(this, player);
+            Epilogue.Ensure().world = this;
             health.Revive();               // full health + closes any game-over screen
             GameUI.Ensure().ResetScore();
         }

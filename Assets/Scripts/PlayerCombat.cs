@@ -23,6 +23,7 @@ public class PlayerCombat : MonoBehaviour
     void Update()
     {
         if (Time.timeScale == 0f) return;   // paused / on the title screen: ignore clicks and E
+        if (Epilogue.Active) { GameUI.Ensure().SetPrompt(""); return; }   // the wake-up scene plays by itself
 
         var ui = GameUI.Ensure();
 

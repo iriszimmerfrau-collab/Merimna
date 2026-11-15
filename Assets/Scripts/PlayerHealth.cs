@@ -58,8 +58,12 @@ public class PlayerHealth : MonoBehaviour
     bool frozen;
 
     /// <summary>Stops/starts WASD movement (used while dialogue, journal or screen fades are up).</summary>
+    /// <summary>While true (cutscenes) the player cannot be unfrozen by other scripts.</summary>
+    public bool CutsceneLock;
+
     public void SetFrozen(bool value)
     {
+        if (CutsceneLock) value = true;
         if (IsDead || value == frozen) return;
         frozen = value;
         if (movement != null) movement.enabled = !value;
@@ -84,7 +88,7 @@ public class PlayerHealth : MonoBehaviour
     {
         if (movement != null) movement.enabled = false;
         if (rb != null) GameInput.SetVelocity(rb, Vector2.zero);
-        GameUI.Ensure().ShowGameOver(true);
+        if (!Epilogue.TryBegin(this)) GameUI.Ensure().ShowGameOver(true);   // death = waking up from a bad dream
         MusicManager.SetDead(true);
         SoundFx.Play("gameover");
     }

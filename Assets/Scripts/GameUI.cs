@@ -136,6 +136,13 @@ public class GameUI : MonoBehaviour
         }
     }
 
+    /// <summary>Hides/shows hearts and score (used for cutscenes).</summary>
+    public void SetHudVisible(bool visible)
+    {
+        heartsRoot.gameObject.SetActive(visible);
+        scoreText.gameObject.SetActive(visible);
+    }
+
     public void AddScore(int n) { Score += n; scoreText.text = "Score: " + Score; SoundFx.Play("score"); }
     public void ResetScore() { Score = 0; scoreText.text = "Score: 0"; }
 

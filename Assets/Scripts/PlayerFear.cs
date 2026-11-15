@@ -42,6 +42,11 @@ public class PlayerFear : MonoBehaviour
             target = Mathf.Max(target, Mathf.Clamp01((foxFearDistance - fd) / (foxFearDistance - 1f)));
         }
 
+        // Hanging on by a thread (one heart or less) is terrifying on its own: strongest at half a heart.
+        // Healing (a cat hug) or sleeping calms it again.
+        if (health != null && !health.IsDead && health.Health <= 2)
+            target = Mathf.Max(target, health.Health <= 1 ? 1f : 0.85f);
+
         if (health != null && health.IsDead) target = 0f;
         Fear = Mathf.Lerp(Fear, target, 1f - Mathf.Exp(-3f * Time.deltaTime));
 

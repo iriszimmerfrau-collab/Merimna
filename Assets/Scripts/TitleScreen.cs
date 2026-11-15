@@ -11,7 +11,7 @@ public class TitleScreen : MonoBehaviour
 {
     public static TitleScreen Instance { get; private set; }
 
-    enum State { Splash, Title, Settings, Credits, Loading, Playing, Paused }
+    enum State { Splash, Title, Settings, Credits, Loading, Playing, Paused, EndCredits }
 
     // ------------------------------------------------------------------ small widgets
     class Btn
@@ -75,6 +75,14 @@ public class TitleScreen : MonoBehaviour
     Text splashText;
     Text[] creditTexts;
 
+    // end credits (after the epilogue)
+    GameObject endPanel;
+    RectTransform endScroll;
+    Text endTheEnd, endPress;
+    float endHeight, endPhaseTime, revealT;
+    int endPhase;
+    Vector2 logoBase = new Vector2(-150f, 260f), ghostBase = new Vector2(610f, 255f);
+
     // menus
     readonly List<Btn> titleBtns = new List<Btn>();
     readonly List<Btn> pauseBtns = new List<Btn>();
@@ -110,6 +118,7 @@ public class TitleScreen : MonoBehaviour
         BuildTitleMenu();
         BuildSettings();
         BuildCredits();
+        BuildEndCredits();
         BuildPause();
         BuildSplash();
         BuildOverlay();
@@ -568,6 +577,53 @@ public class TitleScreen : MonoBehaviour
         creditsBtns.Add(MakeButton(panel, "Back", new Vector2(0, -380), new Vector2(360, 84), 46, () => Go(State.Title)));
     }
 
+    void BuildEndCredits()
+    {
+        var panel = NewUI("End Credits", root);
+        Stretch(panel);
+        endPanel = panel.gameObject;
+
+        var dim = NewUI("Dim", panel);
+        Stretch(dim);
+        var di = dim.gameObject.AddComponent<Image>();
+        di.color = new Color(0.02f, 0f, 0.07f, 0.5f);
+        di.raycastTarget = false;
+
+        endScroll = NewUI("Scroll", panel);
+        Place(endScroll, Vector2.zero, new Vector2(1400, 10));
+
+        // text, size, alpha, gap after
+        object[][] items =
+        {
+            new object[] { "Merimna", 130, 1f, 130f },
+            new object[] { "created by", 42, 0.75f, 70f },
+            new object[] { "Biri Zimmerfrau", 94, 1f, 110f },
+            new object[] { "Iris Zimmerfrau", 94, 1f, 190f },
+            new object[] { "music, sound effects and every pixel", 42, 0.7f, 60f },
+            new object[] { "were made in code", 42, 0.7f, 190f },
+            new object[] { "built with Unity", 40, 0.6f, 190f },
+            new object[] { "thank you for staying a while.", 66, 1f, 0f },
+        };
+
+        float cursor = 0f;
+        foreach (object[] it in items)
+        {
+            int size = (int)it[1];
+            var t = MakeText(endScroll, (string)it[0], size, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, (float)it[2]));
+            Place(t.rectTransform, new Vector2(0f, -cursor), new Vector2(1400, size * 1.4f));
+            cursor += (float)it[3] + size * 0.9f;
+        }
+        endHeight = cursor;
+
+        endTheEnd = MakeText(panel, "The End", 84, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0f));
+        Place(endTheEnd.rectTransform, new Vector2(0f, -210f), new Vector2(900, 120));
+        endPress = MakeText(panel, "press any key", 34, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0f));
+        Place(endPress.rectTransform, new Vector2(0f, -320f), new Vector2(900, 60));
+    }
+
+    /// <summary>Called by the epilogue once Merimna has walked out of the bedroom.</summary>
+    public void BeginEndCredits() { Go(State.EndCredits); }
+
     void BuildPause()
     {
         var dim = NewUI("Pause Dim", root);
@@ -752,10 +808,21 @@ public class TitleScreen : MonoBehaviour
         selected = -1;
 
         bool fromPause = settingsFrom == State.Paused;
-        bool artOn = s == State.Title || s == State.Credits || s == State.Loading || (s == State.Settings && !fromPause);
+        bool artOn = s == State.Title || s == State.Credits || s == State.Loading || s == State.EndCredits || (s == State.Settings && !fromPause);
 
         artRoot.SetActive(artOn);
         logoRoot.SetActive(s == State.Title || s == State.Loading);
+        endPanel.SetActive(s == State.EndCredits);
+        if (s == State.EndCredits)
+        {
+            endPhase = 0;
+            endPhaseTime = 0f;
+            endScroll.anchoredPosition = new Vector2(0f, -650f);
+            endScroll.gameObject.SetActive(true);
+            endTheEnd.color = new Color(1f, 1f, 1f, 0f);
+            endPress.color = new Color(1f, 1f, 1f, 0f);
+        }
+        if (s == State.Title || s == State.Loading) { logoBase = new Vector2(-150f, 260f); ghostBase = new Vector2(610f, 255f); }
         titlePanel.SetActive(s == State.Title);
         settingsPanel.SetActive(s == State.Settings);
         creditsPanel.SetActive(s == State.Credits);
@@ -803,6 +870,7 @@ public class TitleScreen : MonoBehaviour
         stateTime += dt;
 
         if (artRoot.activeSelf) AnimateBackground(dt, t);
+        revealT = state == State.EndCredits ? endPhaseTime : stateTime;
         if (logoRoot.activeSelf) AnimateLogo(dt, t);
 
         // brightness overlay
@@ -838,12 +906,37 @@ public class TitleScreen : MonoBehaviour
                 if (GameInput.EscapePressed()) Go(State.Title);
                 break;
 
+            case State.EndCredits:
+                endPhaseTime += dt;
+                if (endPhase == 0)
+                {
+                    endScroll.anchoredPosition += new Vector2(0f, 105f * dt);
+                    if (endScroll.anchoredPosition.y > endHeight + 120f || (endPhaseTime > 1f && GameInput.EscapePressed()))
+                    {
+                        // credits done: the logo is written out one last time
+                        endPhase = 1;
+                        endPhaseTime = 0f;
+                        endScroll.gameObject.SetActive(false);
+                        logoBase = new Vector2(-150f, 110f);
+                        ghostBase = new Vector2(610f, 105f);
+                        logoRoot.SetActive(true);
+                        SoundFx.Play("page");
+                    }
+                }
+                else
+                {
+                    endTheEnd.color = new Color(1f, 1f, 1f, Mathf.Clamp01((endPhaseTime - 3f) / 1.5f));
+                    endPress.color = new Color(1f, 1f, 1f, endPhaseTime > 5f ? 0.35f + 0.35f * Mathf.Sin(t * 2.5f) : 0f);
+                    if (endPhaseTime > 5f && GameInput.AnyPressed()) { SoundFx.Play("menu_select"); Go(State.Title); }
+                }
+                break;
+
             case State.Loading:
                 UpdateLoading(dt);
                 break;
 
             case State.Playing:
-                if (GameInput.EscapePressed() && !(GameUI.Instance != null && GameUI.Instance.ModalOpen))
+                if (GameInput.EscapePressed() && !Epilogue.Active && !(GameUI.Instance != null && GameUI.Instance.ModalOpen))
                 {
                     Go(State.Paused);
                     SoundFx.Play("tick");
@@ -1051,10 +1144,10 @@ public class TitleScreen : MonoBehaviour
     void AnimateLogo(float dt, float t)
     {
         // the name is "written" left to right
-        float reveal = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(stateTime / 2.6f));
+        float reveal = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(revealT / 2.6f));
         logoMask.sizeDelta = new Vector2(Mathf.Lerp(0f, 1300f, reveal), 420f);
 
-        logoBob.anchoredPosition = new Vector2(-150f, 260f + Mathf.Sin(t * 0.9f) * 7f);
+        logoBob.anchoredPosition = new Vector2(logoBase.x, logoBase.y + Mathf.Sin(t * 0.9f) * 7f);
         logoBob.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 0.55f) * 0.8f);
 
         // occasional glitch: coloured echoes split apart and the ink shivers
@@ -1068,7 +1161,7 @@ public class TitleScreen : MonoBehaviour
         logoMain.rectTransform.anchoredPosition = new Vector2(jitter, 0f);
 
         // the ghost: bobbing, tilting, blinking
-        ghostRt.anchoredPosition = new Vector2(610f + Mathf.Sin(t * 0.8f) * 12f, 255f + Mathf.Sin(t * 1.4f) * 18f);
+        ghostRt.anchoredPosition = new Vector2(ghostBase.x + Mathf.Sin(t * 0.8f) * 12f, ghostBase.y + Mathf.Sin(t * 1.4f) * 18f);
         ghostRt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.1f) * 5f);
         blinkTimer -= dt;
         if (blinkTimer <= 0f) { blinkUntil = t + 0.14f; blinkTimer = Random.Range(2.5f, 6f); }
